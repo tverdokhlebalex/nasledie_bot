@@ -282,13 +282,15 @@ def register_or_assign(payload: RegisterIn, db: Session = Depends(get_db)):
         if user:
             user.tg_id = payload.tg_id
             user.first_name = payload.first_name
-            user.last_name = user.last_name or payload.first_name
+            # last_name из payload опционально, если не пришла — не перетираем
+            if getattr(payload, "last_name", None):
+                user.last_name = payload.last_name
         else:
             user = models.User(
                 tg_id=payload.tg_id,
                 phone=phone,
                 first_name=payload.first_name,
-                last_name=payload.first_name,
+                last_name=(payload.last_name or None),
             )
             db.add(user)
         db.flush()
@@ -296,7 +298,41 @@ def register_or_assign(payload: RegisterIn, db: Session = Depends(get_db)):
     # 3) membership
     member = db.query(models.TeamMember).filter(models.TeamMember.user_id == user.id).one_or_none()
     if not member:
-        team = _next_open_team(db)
+        # Попробуем назначить из whitelist (если есть номер команды у телефона)
+        from .whitelist import lookup as wl_lookup
+        wl = wl_lookup(phone)
+        preferred_team_id = None
+        if wl:
+            # приоритет: распарсенный team_number, затем raw team
+            num = 0
+            try:
+                num = int(wl.get("team_number") or 0)
+            except Exception:
+                num = 0
+            if not num and wl.get("team"):
+                import re
+                m = re.search(r"(\d+)", str(wl["team"]))
+                if m:
+                    num = int(m.group(1))
+            if num:
+                # Сначала ищем по имени вида "Команда №N"
+                team_name = f"Команда №{num}"
+                t = db.query(models.Team).filter(models.Team.name == team_name).one_or_none()
+                if not t:
+                    # На всякий случай попробуем по id == num (если заранее заведены как id=N)
+                    t = db.query(models.Team).filter(models.Team.id == num).one_or_none()
+                if not t:
+                    # Если такой команды ещё нет — создаём её с нужным именем
+                    t = models.Team(name=team_name)
+                    db.add(t)
+                    db.flush()
+                preferred_team_id = t.id
+
+        if preferred_team_id is None:
+            team = _next_open_team(db)
+        else:
+            team = db.query(models.Team).get(preferred_team_id)  # type: ignore
+
         db.add(models.TeamMember(team_id=team.id, user_id=user.id, role="PLAYER"))
         db.commit()
         _ensure_captain_if_full(db, team.id)

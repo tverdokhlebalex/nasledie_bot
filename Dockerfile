@@ -9,9 +9,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /code
 
 # системные утилиты и tzdata (без лишних dev-пакетов)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    tzdata \
- && rm -rf /var/lib/apt/lists/*
+#RUN apt-get update && apt-get install -y --no-install-recommends \
+#    tzdata \
+#&& rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /tmp/requirements.txt
 # wheelhouse может быть пуст/неполон → делаем фолбэк на PyPI

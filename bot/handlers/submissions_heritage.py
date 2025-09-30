@@ -48,7 +48,7 @@ async def on_article(m: Message, bot: Bot):
     sid = r.get("id") or r.get("submission_id")
     u = r.get("user", {})
     team_label = r.get("team_number") or f"Команда {r.get('team_id') or '?'}"
-    caption = f"📰 <b>{team_label}</b>\nАвтор: {u.get('last_name','') or ''} {u.get('first_name','') or ''}\nТел: {_mask_phone(u.get('phone'))}\n\n{url}"
+    caption = f"📰 <b>{team_label}</b>\nАвтор: {u.get('last_name','') or ''} {u.get('first_name','') or ''}\nТел: {u.get('phone') or ''}\n\n{url}"
     kb = kb_moderate(sid)
     await bot.send_message(chat_id=ADMIN_CHAT_ID, text=caption, parse_mode="HTML", reply_markup=kb)
     await m.answer("✅ Ссылка отправлена на модерацию. Спасибо!")
@@ -67,6 +67,6 @@ async def on_photo(m: Message, bot: Bot):
     sid = r["id"]
     u = r.get("user", {})
     team_label = r.get("team_number") or f"Команда {r.get('team_id') or '?'}"
-    cap = f"📷 <b>{team_label}</b>\nАвтор: {u.get('last_name','') or ''} {u.get('first_name','') or ''}\nТел: {_mask_phone(u.get('phone'))}"
+    cap = f"📷 <b>{team_label}</b>\nАвтор: {u.get('last_name','') or ''} {u.get('first_name','') or ''}\nТел: {u.get('phone') or ''}"
     await bot.send_photo(chat_id=ADMIN_CHAT_ID, photo=file_id, caption=cap, parse_mode="HTML", reply_markup=kb_moderate(sid))
     await m.answer("✅ Фото отправлено на модерацию. Спасибо!")
